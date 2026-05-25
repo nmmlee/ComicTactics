@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Tactical Range</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+    #canvas { display: block; }
+
+    #ui {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    /* 상단 HUD */
+    #hud {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 24px; align-items: center;
+      background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      pointer-events: none;
+    }
+    .hud-item { color: #fff; font-size: 14px; }
+    .hud-item span { color: #ffd700; font-weight: bold; margin-left: 4px; }
+
+    /* 턴 표시 */
+    #turn-banner {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      color: #fff; font-size: 18px; font-weight: bold;
+      background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 8px;
+      pointer-events: none;
+    }
+
+    /* 하단 패널 */
+    #bottom-panel {
+      position: fixed; bottom: 0; left: 0; width: 100%;
+      background: rgba(0,0,0,0.75); border-top: 1px solid rgba(255,255,255,0.15);
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 16px;
+      pointer-events: all;
+    }
+
+    #hand-label { color: #aaa; font-size: 13px; white-space: nowrap; }
+
+    #hand-cards {
+      display: flex; gap: 8px; flex: 1; overflow-x: auto;
+    }
+
+    .card {
+      width: 70px; height: 90px; border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: grab; transition: border-color 0.2s, transform 0.15s;
+      user-select: none; position: relative;
+    }
+    .card:hover { border-color: rgba(255,255,255,0.5); transform: translateY(-4px); }
+    .card.selected { border-color: #ffd700; transform: translateY(-6px); }
+    .card .card-icon { font-size: 28px; }
+    .card .card-name { font-size: 10px; color: #ccc; margin-top: 4px; }
+    .card .card-level {
+      position: absolute; top: 4px; right: 6px;
+      font-size: 11px; color: #ffd700; font-weight: bold;
+    }
+    .card[data-type="attacker"] { border-color: rgba(255,80,80,0.4); }
+    .card[data-type="healer"]   { border-color: rgba(80,255,120,0.4); }
+    .card[data-type="piercer"]  { border-color: rgba(80,160,255,0.4); }
+    .card[data-type="attacker"].selected { border-color: #ff5050; }
+    .card[data-type="healer"].selected   { border-color: #50ff78; }
+    .card[data-type="piercer"].selected  { border-color: #50a0ff; }
+
+    /* 버튼 영역 */
+    #action-buttons {
+      display: flex; flex-direction: column; gap: 6px; pointer-events: all;
+    }
+    .btn {
+      padding: 8px 18px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: bold; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover { opacity: 0.85; transform: scale(1.03); }
+    .btn:active { transform: scale(0.97); }
+    .btn-confirm { background: #ffd700; color: #000; }
+    .btn-draw    { background: #4a90e2; color: #fff; }
+    .btn-draw:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .btn-unlock  { background: #7b2fa8; color: #fff; }
+    .btn-unlock:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    /* 드로우 패널 */
+    #draw-panel {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(10,10,20,0.95); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px; padding: 24px; min-width: 320px;
+      display: none; z-index: 100; text-align: center;
+      pointer-events: all;
+    }
+    #draw-panel h2 { color: #ffd700; margin-bottom: 16px; }
+    #draw-result {
+      display: flex; gap: 12px; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .draw-card {
+      width: 80px; height: 100px; border-radius: 10px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.07);
+      cursor: pointer; transition: transform 0.2s;
+    }
+    .draw-card:hover { transform: scale(1.08); }
+    .draw-card .card-icon { font-size: 32px; }
+    .draw-card .card-name { font-size: 11px; color: #ccc; margin-top: 6px; }
+    .btn-close-draw { background: #555; color: #fff; margin-top: 4px; }
+
+    /* 합성 힌트 */
+    #merge-hint {
+      position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,215,0,0.15); border: 1px solid #ffd700;
+      color: #ffd700; font-size: 13px; padding: 6px 16px; border-radius: 8px;
+      display: none; pointer-events: none;
+    }
+
+    /* 게임 오버 / 클리어 */
+    #overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: none; align-items: center; justify-content: center;
+      z-index: 200; pointer-events: all;
+    }
+    #overlay-box {
+      text-align: center; color: #fff;
+    }
+    #overlay-box h1 { font-size: 48px; margin-bottom: 16px; }
+    #overlay-box p  { font-size: 18px; color: #aaa; margin-bottom: 24px; }
+    .btn-restart { background: #ffd700; color: #000; font-size: 16px; padding: 12px 32px; }
+
+    /* 툴팁 */
+    #tooltip {
+      position: fixed; pointer-events: none;
+      background: rgba(0,0,0,0.85); color: #fff;
+      font-size: 12px; padding: 6px 10px; border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      display: none; z-index: 300; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="ui">
+  <div id="hud">
+    <div class="hud-item">Wave <span id="hud-wave">1</span></div>
+    <div class="hud-item">티켓 <span id="hud-tickets">0</span></div>
+    <div class="hud-item">적 처치 <span id="hud-kills">0</span></div>
+  </div>
+  <div id="turn-banner">-- 배치 턴 --</div>
+
+  <div id="bottom-panel">
+    <div id="hand-label">패 (드래그해서 배치)</div>
+    <div id="hand-cards"></div>
+    <div id="action-buttons">
+      <button class="btn btn-unlock" id="btn-unlock">해금 🎟️3</button>
+      <button class="btn btn-draw" id="btn-draw">드로우 (티켓 1)</button>
+      <button class="btn btn-confirm" id="btn-confirm">턴 종료</button>
+    </div>
+  </div>
+
+  <div id="merge-hint">같은 캐릭터 2개를 같은 칸에 배치하면 합성!</div>
+</div>
+
+<!-- 드로우 패널 -->
+<div id="draw-panel">
+  <h2>캐릭터 드로우</h2>
+  <div id="draw-result"></div>
+  <button class="btn btn-close-draw" id="btn-close-draw">패에 추가</button>
+</div>
+
+<!-- 게임 오버 / 클리어 -->
+<div id="overlay" id="overlay">
+  <div id="overlay-box">
+    <h1 id="overlay-title">GAME OVER</h1>
+    <p id="overlay-msg">모든 캐릭터가 쓰러졌습니다.</p>
+    <button class="btn btn-restart" id="btn-restart">다시 시작</button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script>
+  window.addEventListener('error', e => {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#200;color:#f88;padding:20px;border-radius:8px;z-index:9999;max-width:80vw;white-space:pre-wrap;font-family:monospace;font-size:13px;border:1px solid #f44';
+    box.textContent = '에러: ' + e.message + '\n파일: ' + e.filename + '\n라인: ' + e.lineno;
+    document.body.appendChild(box);
+  });
+  window.addEventListener('unhandledrejection', e => {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#200;color:#f88;padding:20px;border-radius:8px;z-index:9999;max-width:80vw;white-space:pre-wrap;font-family:monospace;font-size:13px;border:1px solid #f44';
+    box.textContent = '비동기 에러: ' + (e.reason?.message || e.reason || '알 수 없음') + '\n' + (e.reason?.stack || '');
+    document.body.appendChild(box);
+  });
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
