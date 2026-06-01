@@ -28,6 +28,7 @@ export function updateHUD() {
       : '-- 드로우 턴 --';
 }
 
+
 export function renderFragments() {
   const container = document.getElementById('hand-cards');
   container.innerHTML = '';

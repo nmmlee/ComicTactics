@@ -10,12 +10,12 @@ let eid = 0;
 // (normal)  - 1칸 전진 + 근접 공격
 
 const ENEMY_TYPES = {
-  normal:  { color: 0xcc3300, emissive: 0x220000, icon: '🟥', label: '전사',   hp: 80,  atk: 12, reward: 1 },
-  charge:  { color: 0xff6600, emissive: 0x331100, icon: '🟧', label: '돌격병', hp: 60,  atk: 18, reward: 1 },
-  ranged:  { color: 0xaa00cc, emissive: 0x220033, icon: '🟪', label: '원거리', hp: 50,  atk: 15, reward: 2 },
-  aoe:     { color: 0xcc8800, emissive: 0x221100, icon: '🟨', label: '폭발병', hp: 70,  atk: 10, reward: 2 },
-  healer:  { color: 0x00cc44, emissive: 0x002211, icon: '🟩', label: '치료사', hp: 55,  atk:  6, reward: 2 },
-  boss:    { color: 0xff2200, emissive: 0x440000, icon: '👹', label: '보스',   hp: 500, atk: 40, reward: 5 },
+  normal:  { color: 0xcc3300, emissive: 0x220000, icon: '🟥', label: '전사',   hp: 80,  atk: 12, reward: 1, moveDesc: '가장 가까운 아군 방향 1칸 전진', skillDesc: '사거리 내 아군 1명 무작위 공격' },
+  charge:  { color: 0xff6600, emissive: 0x331100, icon: '🟧', label: '돌격병', hp: 60,  atk: 18, reward: 1, moveDesc: '가장 가까운 아군 방향 2칸 전진', skillDesc: '사거리 내 아군 1명 강타' },
+  ranged:  { color: 0xaa00cc, emissive: 0x220033, icon: '🟪', label: '원거리', hp: 50,  atk: 15, reward: 2, moveDesc: '이동하지 않음',                  skillDesc: '3칸 내 HP 가장 낮은 아군 원거리 공격' },
+  aoe:     { color: 0xcc8800, emissive: 0x221100, icon: '🟨', label: '폭발병', hp: 70,  atk: 10, reward: 2, moveDesc: '가장 가까운 아군 방향 1칸 전진', skillDesc: '주변 모든 아군 동시 폭발 공격' },
+  healer:  { color: 0x00cc44, emissive: 0x002211, icon: '🟩', label: '치료사', hp: 55,  atk:  6, reward: 2, moveDesc: '부상 동료 없으면 아군 방향 전진',  skillDesc: '인접한 적군 중 HP 최저 동료 회복' },
+  boss:    { color: 0xff2200, emissive: 0x440000, icon: '👹', label: '보스',   hp: 500, atk: 40, reward: 5, moveDesc: '가장 가까운 아군 방향 1칸 전진', skillDesc: '사거리 내 아군 1명 강력 공격' },
 };
 
 export class Enemy {

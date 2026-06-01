@@ -136,13 +136,17 @@
     #overlay-box p  { font-size: 18px; color: #aaa; margin-bottom: 24px; }
     .btn-restart { background: #ffd700; color: #000; font-size: 16px; padding: 12px 32px; }
 
-    /* 툴팁 */
+/* 툴팁 */
     #tooltip {
       position: fixed; pointer-events: none;
-      background: rgba(0,0,0,0.85); color: #fff;
-      font-size: 12px; padding: 6px 10px; border-radius: 6px;
+      background: rgba(0,0,0,0.88); color: #fff;
+      font-size: 13px; padding: 8px 12px; border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.2);
-      display: none; z-index: 300; line-height: 1.6;
+      display: none; z-index: 300; line-height: 1.7;
+      white-space: nowrap;
+    }
+    #tooltip .tooltip-title {
+      font-weight: bold; font-size: 14px; margin-bottom: 4px; color: #ff9988;
     }
   </style>
 </head>

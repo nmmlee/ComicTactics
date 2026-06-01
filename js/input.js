@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { canvas, scene, camera, controls, grid } from './scene.js';
-import { CELL } from './grid.js';
 import { state } from './state.js';
 import { Character } from './character.js';
 import { Enemy } from './enemy.js';
 import { randomType } from './gacha.js';
 import { selectAlly, clearSelection, moveAlly, deployAtCell } from './ally.js';
+import { getAttackCells, getEnemyAttackCells, buildXMarkers } from './rangeViz.js';
 import { startRosterDeploy, addFragment, unlockSlot } from './upgrade.js';
 import { endPlayerTurn, waveCleared } from './turns.js';
 import { updateHUD, showEndScreen, renderFragments, onDeploy } from './ui.js';
@@ -42,12 +42,12 @@ canvas.addEventListener('pointerdown', e => {
   }
 });
 
-// Hover: 선택된 아군이 있으면 공격 범위 링을 따라다니게 함
+// Hover: 선택된 아군이 있으면 이동 예상 위치 기준 공격 범위 X 마크 갱신
 const hoverPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const hoverPt = new THREE.Vector3();
 
 canvas.addEventListener('pointermove', e => {
-  if (!state.selectedAlly || !state.rangeIndicator || state.phase !== 'player') return;
+  if (!state.selectedAlly || state.phase !== 'player') return;
   updateMouse(e);
   raycaster.setFromCamera(mouse, camera);
   if (!raycaster.ray.intersectPlane(hoverPlane, hoverPt)) return;
@@ -57,48 +57,82 @@ canvas.addEventListener('pointermove', e => {
   if (state.lastHoverCell === key) return;
   state.lastHoverCell = key;
 
+  // 셀 변경 시 X 마크 재생성
+  if (state.rangeIndicator) { scene.remove(state.rangeIndicator); state.rangeIndicator = null; }
+
   const isMoveTarget = cell && state.moveHighlights.some(h => h.col === cell.col && h.row === cell.row);
   const previewCol = isMoveTarget ? cell.col : state.selectedAlly.gridX;
   const previewRow = isMoveTarget ? cell.row : state.selectedAlly.gridZ;
-  const wp = grid.toWorld(previewCol, previewRow);
-  state.rangeIndicator.position.set(wp.x, 0.15, wp.z);
+  const def = state.selectedAlly.def;
+  const cells = getAttackCells(previewCol, previewRow, def.rangeType, state.selectedAlly.range);
+  state.rangeIndicator = buildXMarkers(scene, grid, cells, def.color);
 });
 
-// 적 호버 시 공격 범위 링 표시
+// 호버 시 툴팁 + 적 공격 범위 브라켓 표시
 const enemyHoverPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const enemyHoverPt = new THREE.Vector3();
+const tooltip = document.getElementById('tooltip');
 
 canvas.addEventListener('pointermove', e => {
-  if (state.selectedAlly) return; // 아군 링이 우선
   updateMouse(e);
   raycaster.setFromCamera(mouse, camera);
-  if (!raycaster.ray.intersectPlane(enemyHoverPlane, enemyHoverPt)) return;
+
+  if (!raycaster.ray.intersectPlane(enemyHoverPlane, enemyHoverPt)) {
+    tooltip.style.display = 'none';
+    if (!state.selectedAlly) {
+      if (state.enemyHoverRing) { scene.remove(state.enemyHoverRing); state.enemyHoverRing = null; }
+      state.enemyHoverKey = null;
+    }
+    return;
+  }
+
   const cell = grid.fromWorld(enemyHoverPt.x, enemyHoverPt.z);
+  const occupant = cell ? grid.getOccupied(cell.col, cell.row) : null;
+  const hoveredEnemy = (occupant instanceof Enemy    && occupant.isAlive()) ? occupant : null;
+  const hoveredAlly  = (occupant instanceof Character && occupant.isAlive()) ? occupant : null;
+
+  // 툴팁 갱신
+  if (hoveredAlly) {
+    const def = hoveredAlly.def;
+    const isHealer = hoveredAlly.type === 'healer';
+    const statLabel = isHealer ? '회복력' : '공격력';
+    const statValue = isHealer ? hoveredAlly.heal : hoveredAlly.damage;
+    const rangeLabel = hoveredAlly.def.rangeType === 'line' ? '직선' : '범위';
+    tooltip.innerHTML =
+      `<div class="tooltip-title" style="color:#88ddff">${def.name} Lv${hoveredAlly.level}</div>` +
+      `체력 : ${Math.round(hoveredAlly.hp)} / ${hoveredAlly.maxHp}<br>` +
+      `${statLabel} : ${statValue}<br>` +
+      `사거리 : ${rangeLabel} ${hoveredAlly.range}칸`;
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY + 14) + 'px';
+    tooltip.style.display = 'block';
+  } else if (hoveredEnemy && !state.selectedAlly) {
+    const d = hoveredEnemy.def;
+    tooltip.innerHTML =
+      `<div class="tooltip-title">${d.label}</div>` +
+      `체력 : ${Math.round(hoveredEnemy.hp)} / ${Math.round(hoveredEnemy.maxHp)}<br>` +
+      `공격력 : ${Math.round(hoveredEnemy.attack)}<br>` +
+      `이동 : ${d.moveDesc}<br>` +
+      `스킬 : ${d.skillDesc}`;
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY + 14) + 'px';
+    tooltip.style.display = 'block';
+  } else {
+    tooltip.style.display = 'none';
+  }
+
+  // 적 공격 범위 브라켓 (아군 선택 중엔 표시 안 함)
+  if (state.selectedAlly) return;
 
   const key = cell ? `${cell.col},${cell.row}` : null;
   if (state.enemyHoverKey === key) return;
   state.enemyHoverKey = key;
 
   if (state.enemyHoverRing) { scene.remove(state.enemyHoverRing); state.enemyHoverRing = null; }
+  if (!hoveredEnemy) return;
 
-  if (!cell) return;
-  const occupant = grid.getOccupied(cell.col, cell.row);
-  if (!(occupant instanceof Enemy) || !occupant.isAlive()) return;
-
-  const worldRange = occupant.type === 'ranged'
-    ? 3 * CELL
-    : occupant.type === 'aoe'
-    ? 1.8 * CELL
-    : 1.5 * CELL;
-
-  const color = 0xff3300;
-  const geo = new THREE.RingGeometry(worldRange - 0.05, worldRange + 0.05, 48);
-  const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
-  state.enemyHoverRing = new THREE.Mesh(geo, mat);
-  state.enemyHoverRing.rotation.x = -Math.PI / 2;
-  const wp = grid.toWorld(cell.col, cell.row);
-  state.enemyHoverRing.position.set(wp.x, 0.15, wp.z);
-  scene.add(state.enemyHoverRing);
+  const enemyCells = getEnemyAttackCells(hoveredEnemy.gridX, hoveredEnemy.gridZ, hoveredEnemy.type);
+  state.enemyHoverRing = buildXMarkers(scene, grid, enemyCells, 0xff3300);
 });
 
 canvas.addEventListener('pointerup', e => {

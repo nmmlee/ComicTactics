@@ -4,7 +4,7 @@ import { Enemy } from './enemy.js';
 import { scene, grid } from './scene.js';
 import { state } from './state.js';
 import { COLS, ROWS, CELL } from './grid.js';
-import { buildRangeRing } from './rangeViz.js';
+import { getAttackCells, buildXMarkers } from './rangeViz.js';
 import { applyAttack } from './combat.js';
 
 export function buildCharMesh(char) {
@@ -142,9 +142,8 @@ export function selectAlly(char) {
   }
 
   const def = CHAR_TYPES[char.type];
-  state.rangeIndicator = buildRangeRing(scene, def.rangeType, char.range * CELL, def.color);
-  const wp = grid.toWorld(col, row);
-  state.rangeIndicator.position.set(wp.x, 0.15, wp.z);
+  const attackCells = getAttackCells(col, row, def.rangeType, char.range);
+  state.rangeIndicator = buildXMarkers(scene, grid, attackCells, def.color);
 }
 
 // 이동만 처리하고 결과를 반환. 턴 종료/웨이브 클리어 판단은 호출자가 한다.

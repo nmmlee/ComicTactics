@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Enemy } from './enemy.js';
-import { buildRangeRing } from './rangeViz.js';
 
 // Apply one character's attack at its current grid position
 // Returns { tickets, killedAllies }
