@@ -126,7 +126,7 @@ export function selectAlly(char) {
     const { c, r, steps } = queue.shift();
     if (steps > 0 && !grid.isOccupied(c, r)) {
       state.moveHighlights.push({ col: c, row: r });
-      grid.highlight(c, r, 0x004444);
+      grid.highlight(c, r, 0x00e8ff);
     }
     if (steps >= moveRange) continue;
     for (const [dc, dr] of [[1,0],[-1,0],[0,1],[0,-1]]) {
