@@ -6,32 +6,30 @@ import { state } from './state.js';
 import { COLS, ROWS, CELL } from './grid.js';
 import { getAttackCells, buildXMarkers } from './rangeViz.js';
 import { applyAttack } from './combat.js';
+import { getModel, setModelEmissive } from './models.js';
 
 export function buildCharMesh(char) {
-  const def = CHAR_TYPES[char.type];
   const group = new THREE.Group();
 
-  const h = 0.5 + char.level * 0.15;
-  const geo = new THREE.CylinderGeometry(0.3, 0.35, h, 8);
-  const mat = new THREE.MeshStandardMaterial({
-    color: def.color, emissive: def.emissive,
-    emissiveIntensity: 0.3 + char.level * 0.1, roughness: 0.5,
-  });
-  const body = new THREE.Mesh(geo, mat);
-  body.position.y = h / 2;
-  body.castShadow = true;
-  group.add(body);
+  // GLB 캐릭터 모델
+  const modelGroup = getModel(char.type);
+  if (modelGroup) {
+    char._modelGroup = modelGroup;
+    group.add(modelGroup);
+  }
 
+  // 레벨 표시: 작은 큐브 gem
   for (let i = 0; i < char.level; i++) {
-    const orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.06, 6, 6),
+    const gem = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.07, 0.07),
       new THREE.MeshBasicMaterial({ color: 0xffd700 })
     );
     const angle = (i / 4) * Math.PI * 2;
-    orb.position.set(Math.cos(angle) * 0.28, h + 0.1, Math.sin(angle) * 0.28);
-    group.add(orb);
+    gem.position.set(Math.cos(angle) * 0.30, 1.15, Math.sin(angle) * 0.30);
+    group.add(gem);
   }
 
+  // HP 바 (배경)
   const bg = new THREE.Mesh(
     new THREE.PlaneGeometry(0.8, 0.08),
     new THREE.MeshBasicMaterial({ color: 0x222222, depthTest: false })
@@ -40,6 +38,7 @@ export function buildCharMesh(char) {
   bg.position.set(0, 0.03, 0);
   group.add(bg);
 
+  // HP 바 (채움)
   char.hpFill = new THREE.Mesh(
     new THREE.PlaneGeometry(0.8, 0.07),
     new THREE.MeshBasicMaterial({ color: 0x44aaff, depthTest: false })
@@ -48,6 +47,7 @@ export function buildCharMesh(char) {
   char.hpFill.position.set(0, 0.04, 0);
   group.add(char.hpFill);
 
+  // 준비 링
   char.readyRing = new THREE.Mesh(
     new THREE.RingGeometry(0.38, 0.46, 24),
     new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false })
@@ -89,7 +89,6 @@ export function deployAtCell(col, row) {
   grid.clearHighlights();
   char.hp = char.maxHp;
   placeAlly(char, col, row);
-  state.movedThisTurn.add(char.id);
 }
 
 export function clearMoveHighlights() {
@@ -186,11 +185,11 @@ export function updateAllyAnimations(t) {
       }
     }
 
-    const body = c.mesh.children[0];
-    if (body?.material) {
-      body.material.emissiveIntensity = isMoved
-        ? 0.05
-        : (c === state.selectedAlly ? 0.5 + Math.sin(t * 4) * 0.3 : 0.3 + c.level * 0.1);
+    if (c._modelGroup) {
+      const intensity = isMoved
+        ? 0.0
+        : (c === state.selectedAlly ? 0.5 + Math.sin(t * 4) * 0.3 : 0.15);
+      setModelEmissive(c._modelGroup, 0xffffff, intensity);
     }
   }
 }

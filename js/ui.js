@@ -109,9 +109,20 @@ export function showDrawResult(type, count) {
 
 export function showEndScreen(win) {
   const overlay = document.getElementById('overlay');
-  document.getElementById('overlay-title').textContent = win ? 'VICTORY!' : 'GAME OVER';
-  document.getElementById('overlay-msg').textContent = win
-    ? `Wave ${state.wave} 보스를 처치했습니다!`
-    : '모든 아군이 쓰러졌습니다.';
+  const title = document.getElementById('overlay-title');
+  const msg = document.getElementById('overlay-msg');
+
+  if (win) {
+    title.textContent = 'STAGE CLEAR!';
+    title.style.textShadow = '0 0 40px rgba(255,215,0,0.8)';
+    title.style.color = '#ffe066';
+    msg.innerHTML = `보스를 처치했습니다!<br>처치 수: ${state.kills} / 웨이브: ${state.wave}`;
+  } else {
+    title.textContent = 'GAME OVER';
+    title.style.textShadow = '0 0 40px rgba(255,80,80,0.6)';
+    title.style.color = '#fff';
+    msg.textContent = '모든 아군이 쓰러졌습니다.';
+  }
+
   overlay.style.display = 'flex';
 }

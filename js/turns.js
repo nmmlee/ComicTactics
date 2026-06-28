@@ -45,7 +45,13 @@ async function doEnemyTurn() {
   updateHUD();
 }
 
+const STAGE_1_FINAL_WAVE = 5;
+
 export function waveCleared() {
+  if (state.wave === STAGE_1_FINAL_WAVE) {
+    showEndScreen(true);
+    return;
+  }
   state.wave++;
   state.movedThisTurn.clear();
   setTimeout(() => {

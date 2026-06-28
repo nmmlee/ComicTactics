@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getModel } from './models.js';
 
 let eid = 0;
 
@@ -52,25 +53,29 @@ export class Enemy {
   buildMesh(scene, worldPos) {
     const group = new THREE.Group();
 
-    const isBoss = this.type === 'boss';
-    const size = isBoss ? [0.95, 1.4, 0.95] : [0.68, 0.88, 0.68];
-    const geo = new THREE.BoxGeometry(...size);
-    const mat = new THREE.MeshStandardMaterial({
-      color: this.color, emissive: this.def.emissive, emissiveIntensity: 0.4, roughness: 0.6,
-    });
-    const body = new THREE.Mesh(geo, mat);
-    body.position.y = size[1] / 2;
-    body.castShadow = true;
-    group.add(body);
-
-    // Ability indicator orb on top
-    if (this.type !== 'normal' && !isBoss) {
+    if (this.type === 'aoe') {
+      const geo = new THREE.BoxGeometry(0.68, 0.88, 0.68);
+      const mat = new THREE.MeshStandardMaterial({
+        color: this.color, emissive: this.def.emissive, emissiveIntensity: 0.4, roughness: 0.6,
+      });
+      const body = new THREE.Mesh(geo, mat);
+      body.position.y = 0.44;
+      body.castShadow = true;
+      group.add(body);
       const orb = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 8, 8),
         new THREE.MeshBasicMaterial({ color: this.color })
       );
-      orb.position.y = size[1] + 0.2;
+      orb.position.y = 1.08;
       group.add(orb);
+    } else {
+      const modelGroup = getModel(`enemy_${this.type}`);
+      if (modelGroup) {
+        if (this.type === 'boss') modelGroup.scale.multiplyScalar(1.5);
+        modelGroup.rotation.y = Math.PI;
+        this._modelGroup = modelGroup;
+        group.add(modelGroup);
+      }
     }
 
     // HP bar background

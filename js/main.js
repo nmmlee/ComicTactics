@@ -4,6 +4,7 @@ import { onFrame, startRenderLoop } from './scene.js';
 import { placeAlly, updateAllyAnimations } from './ally.js';
 import { updateHUD, renderFragments } from './ui.js';
 import { spawnEnemies, setPhase } from './turns.js';
+import { preloadModels } from './models.js';
 import './input.js';
 
 function createStarterAllies() {
@@ -18,7 +19,8 @@ function createStarterAllies() {
   placeAlly(archer,  4, 1);
 }
 
-function init() {
+async function init() {
+  await preloadModels();
   createStarterAllies();
   spawnEnemies();
   setPhase('player');
